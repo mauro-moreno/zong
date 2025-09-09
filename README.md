@@ -46,3 +46,104 @@ cd zong
 zig build run
 ```
 
+If you hit issues, make sure your Zig matches the nominated version for Mach (and that submodules / dependencies are set per the repo instructions once they land).
+
+---
+
+## Roadmap & milestones
+
+- **Roadmap:** see [`ROADMAP.md`](./ROADMAP.md) for planned versions:
+  - `v0.1.0` Playable core (two players, scoring to 11)
+  - `v0.2.0` UX & SFX
+  - `v0.3.0` Single-player
+  - `v1.0.0` Polish & packaging
+- **Project board:** *Zong Roadmap* (GitHub Projects) tracks milestones **M1--M10** and weekly iterations.
+
+---
+
+## Project structure
+
+```
+/src/              # Zig source
+/shaders/          # WGSL/GLSL shader programs (treated as code)
+/assets/
+  /audio/          # SFX (WAV/OGG)
+  /images/         # bitmap digits, logos, etc.
+ROADMAP.md
+CONTRIBUTING.md
+LICENSE            # code license (MIT)
+assets/LICENSE     # assets license (CC0)
+
+```
+
+---
+
+## Design notes
+
+- **Virtual resolution** (e.g., 800×600) decouples gameplay/physics from window size.
+- **Physics:** fixed step (e.g., 120 Hz accumulator), render at display refresh; clamp long frames.
+- **Paddle bounce law:** hit farther from the center → larger outgoing angle (with optional carry from paddle `vy`).
+- **AI:** predict intercept `y` at the AI paddle's `x` (account for up to two wall bounces), then PD-control to target.
+
+---
+
+## Shaders
+
+Zong treats **shaders as code** (MIT/Apache-2.0)---so they can be reused across projects without CC ambiguities.
+
+- **Full-screen fx** (prefix `fx_`): CRT/scanline, vignette, palette mix, subtle bloom.
+- **Sprite materials** (prefix `mat_`): simple color grading / tinting knobs.
+- **Uniforms (suggested):** `time`, `resolution`, `bloom_amount`, `vignette_amount`, `crt_amount`, `scanline_thickness`, `palette_mix`.
+
+*If you contribute shaders, please include an `SPDX-License-Identifier` header and a short docstring describing uniforms & defaults.*
+
+---
+
+## Contributing
+
+Contributions are very welcome---especially **small, focused PRs**.
+
+- Read [`CONTRIBUTING.md`](./CONTRIBUTING.md) for build notes, workflow, and the manual test runbook.
+- Look for issues labeled **good first issue** and **P1**.
+- Use labels: `type:*`, `area:*`, `P0|P1|P2`.
+- Keep gameplay deterministic; avoid new dependencies unless they're clearly justified.
+
+> Code of Conduct: Contributor Covenant (short and simple).
+
+---
+
+## Releasing
+
+- Use semver: `0.1.0` (playable core), `0.2.0` (UX/SFX), `0.3.0` (single-player), `1.0.0` (polish).
+- Each release notes the **pinned Zig** and **Mach** versions and can include desktop binaries.
+
+---
+
+## License
+
+- **Code (including shaders):** **MIT** (see [`LICENSE`](./LICENSE)).
+- **Game assets** (images/audio in `/assets`): **CC0 1.0** by default (see [`/assets/LICENSE`](./assets/LICENSE)).
+  - If you submit assets under **CC BY-4.0**, say so in the asset's folder README.
+
+> "Pong" is a classic genre; **Zong** is original work and not affiliated with any trademark holder.
+
+---
+
+## Acknowledgments
+
+- The **Mach** project and maintainers.
+- The **Zig** community for tooling and examples.
+
+---
+
+## FAQ
+
+**Why Zig + Mach instead of Godot/Unity/etc.?**\
+To learn & keep control. This project favors **clarity and minimalism** over features.
+
+**Will Zong run in the browser or on mobile?**\
+Desktop first. Web/mobile may come later depending on Mach's trajectory.
+
+**How can I suggest features?**\
+Open a GitHub Discussion or a labeled issue (`type:feature`, include acceptance criteria).
+
