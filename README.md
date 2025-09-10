@@ -87,6 +87,28 @@ assets/LICENSE     # assets license (CC0)
 
 ---
 
+## Tiger Style
+
+**Why:** clarity, safety, and determinism—so the code stays tiny and robust as we grow.
+
+**Principles we adopt (adapted from TigerBeetle’s Tiger Style):**
+- **ReleaseSafe by default:** runtime safety checks and assertions stay on.
+- **Two-sided contracts:** the caller validates inputs; the callee asserts invariants and post-conditions.
+- **Limits everywhere:** hard caps for counts/sizes/speeds (e.g., max ball speed, max SFX voices, max frame delta).
+- **Static after init:** no dynamic allocation inside the hot game loop; preallocate pools at startup.
+- **Deterministic sim & snapshots:** tests drive fixed-seed simulations and compare stable outputs (e.g., HUD).
+- **Simple control flow:** small functions, early returns, straightforward data structures.
+- **Minimal dependencies:** keep the surface area small (Mach + the essentials).
+
+**What this means for Zong:**
+- Build mode targets **ReleaseSafe** during development and early releases.
+- A “no-alloc after init” guard panics if anything allocates in the loop.
+- Preallocated pools for frame memory, physics state, sprite batches, audio voices, and input buffers.
+- Invariants are asserted (e.g., speed never exceeds cap; ball never leaves arena bounds).
+- Tests run deterministic simulations (fixed seed/inputs) and snapshot the HUD/arena for regressions.
+
+---
+
 ## Shaders
 
 Zong treats **shaders as code** (MIT/Apache-2.0)---so they can be reused across projects without CC ambiguities.
