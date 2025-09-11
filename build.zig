@@ -36,4 +36,9 @@ pub fn build(b: *std.Build) void {
     const app_tests = b.addTest(.{ .root_module = app_mod });
     const run_tests = b.addRunArtifact(app_tests);
     b.step("test", "Run tests").dependOn(&run_tests.step);
+
+    // `zig build run-smoke`
+    const smoke = b.addRunArtifact(exe);
+    smoke.addArgs(&.{ "--smoke-frames", "600", "--max-dt-ms", "33"});
+    b.step("run-smoke", "Run 600-frames smoke test").dependOn(&smoke.step);
 }
