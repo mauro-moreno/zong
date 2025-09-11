@@ -71,7 +71,7 @@ pub fn tick(app: *App, core: *mach.Core) void {
     const encoder = window.device.createCommandEncoder(&.{ .label = label });
     defer encoder.release();
 
-    const background_color = gpu.Color{ .r = 0.3, .g = 0.3, .b = 0.46, .a = 1.0 };
+    const background_color = gpu.Color{ .r = 0.133, .g = 0.133, .b = 0.204, .a = 1.0 };
     const color_attachments = [_]gpu.RenderPassColorAttachment{.{
         .view = back_buffer_view,
         .clear_value = background_color,
