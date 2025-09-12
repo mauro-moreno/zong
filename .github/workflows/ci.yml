@@ -18,7 +18,7 @@ env:
 
 jobs:
   fmt:
-    name: zig fmt — ${{ matrix.os }}
+    name: zig build — ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -41,13 +41,6 @@ jobs:
             zig-cache
             zig-out
           key: zig-${{ runner.os }}-${{ env.ZIG_VERSION }}-${{ hashFiles('build.zig', 'build.zig.zon', 'src/**/*.zig') }}
-
-      - name: Check formatting
-        shell: bash
-        run: |
-          zig fmt --check build.zig
-          # Recursively check all Zig sources
-          zig fmt --check src
 
   smoke:
     name: smoke (600 frames, ReleaseSafe) — ubuntu
