@@ -5,6 +5,7 @@ const gpu = mach.gpu;
 const Metrics = @import("metrics.zig").Metrics;
 const Limits = @import("metrics.zig").Limits;
 const GuardedAllocator = @import("alloc_guard.zig").GuardedAllocator;
+const Pipelines = @import("pipelines.zig").Pipelines;
 
 const App = @This();
 
@@ -31,6 +32,9 @@ gpa: std.heap.GeneralPurposeAllocator(.{}) = .{},
 guard: GuardedAllocator = undefined,
 alloc: std.mem.Allocator = undefined,
 alloc_allowed: bool = true,
+
+// Pipelines
+pipelines: Pipelines,
 
 // Smoke mode
 smoke_mode: bool = false,
@@ -87,6 +91,12 @@ pub fn init(core: *mach.Core, app: *App, app_mod: mach.Mod(App)) !void {
     app.smoke_mode = smoke_frames != null;
     app.smoke_frames_left = smoke_frames orelse 0;
     app.log_accum_ns = 0;
+
+    const window = core.windows.getValue(app.window);
+    defer core.windows.setValueRaw(app.window, window);
+
+    app.pipelines = try Pipelines.init(window.device, window.framebuffer_format);
+
     app.alloc_allowed = false;
 
     // Startup log
@@ -159,6 +169,36 @@ pub fn tick(app: *App, core: *mach.Core) void {
         .label = label,
         .color_attachments = &color_attachments,
     }));
+
+    const res = .{ 800.0, 600.0 };
+
+    // Left paddle
+    app.pipelines.drawRect(render_pass, window.queue, .{
+        .resolution = res,
+        .pos = .{ 32, 600 / 2 - 48 },
+        .size = .{ 14, 96 },
+        ._pad0 = .{ 0, 0 },
+        .color = .{ 0.90, 0.92, 0.96, 1.0 },
+    });
+
+    // Right paddle
+    app.pipelines.drawRect(render_pass, window.queue, .{
+        .resolution = res,
+        .pos = .{ 800 - 32 - 14, 600 / 2 - 48 },
+        .size = .{ 14, 96 },
+        ._pad0 = .{0, 0},
+        .color = .{ 0.90, 0.92, 0.96, 1.0 },
+    });
+
+    // Ball
+    app.pipelines.drawCircle(render_pass, window.queue, .{
+        .resolution = res,
+        .center = .{ 400, 300 },
+        .radius = 8,
+        ._pad0 = 0,
+        ._pad1 = .{ 0, 0 },
+        .color = .{ 0.95, 0.98, 1.0, 1.0 },
+    });
 
     render_pass.end();
     render_pass.release();
