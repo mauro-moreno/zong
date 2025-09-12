@@ -44,8 +44,9 @@ jobs:
 
   smoke:
     name: smoke (600 frames, ReleaseSafe) — ubuntu
-    needs: fmt
     runs-on: ubuntu-latest
+    env:
+      WGPU_BACKEND: gl
     steps:
       - name: Checkout
         uses: actions/checkout@v4
