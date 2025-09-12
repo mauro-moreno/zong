@@ -1,0 +1,83 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Match Mach's nominated Zig; "master" pulls a nightly.
+  # If you pin a specific version, e.g. "0.12.0" or "0.13.0-dev.XXXX", change it here.
+  ZIG_VERSION: 0.14.0-dev.2577+271452d22
+
+jobs:
+  fmt:
+    name: zig fmt — ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Zig ${{ env.ZIG_VERSION }}
+        uses: mlugg/setup-zig@v1
+        with:
+          version: ${{ env.ZIG_VERSION }}
+
+      # Optional cache (speeds up incremental builds if you add more steps later)
+      - name: Cache zig build dirs
+        uses: actions/cache@v4
+        with:
+          path: |
+            zig-cache
+            zig-out
+          key: zig-${{ runner.os }}-${{ env.ZIG_VERSION }}-${{ hashFiles('build.zig', 'build.zig.zon', 'src/**/*.zig') }}
+
+      - name: Check formatting
+        shell: bash
+        run: |
+          zig fmt --check build.zig
+          # Recursively check all Zig sources
+          zig fmt --check src
+
+  smoke:
+    name: smoke (600 frames, ReleaseSafe) — ubuntu
+    needs: fmt
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Zig ${{ env.ZIG_VERSION }}
+        uses: mlugg/setup-zig@v1
+        with:
+          version: ${{ env.ZIG_VERSION }}
+
+      - name: Cache zig build dirs
+        uses: actions/cache@v4
+        with:
+          path: |
+            zig-cache
+            zig-out
+          key: zig-${{ runner.os }}-${{ env.ZIG_VERSION }}-${{ hashFiles('build.zig', 'build.zig.zon', 'src/**/*.zig') }}
+
+      # Headless display so Mach can create a window/swapchain on CI
+      - name: Install xvfb
+        run: sudo apt-get update && sudo apt-get install -y xvfb
+
+      - name: Run smoke test (600 frames)
+        shell: bash
+        run: |
+          # 1024x768x24 virtual screen is plenty for 800x600
+          xvfb-run -s "-screen 0 1024x768x24" \
+            zig build -Doptimize=ReleaseSafe run-smoke
+

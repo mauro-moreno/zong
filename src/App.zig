@@ -147,6 +147,7 @@ pub fn tick(app: *App, core: *mach.Core) void {
     std.debug.assert(std.math.isFinite(background_color.g) and background_color.g >= 0 and background_color.g <= 1);
     std.debug.assert(std.math.isFinite(background_color.b) and background_color.b >= 0 and background_color.b <= 1);
     std.debug.assert(std.math.isFinite(background_color.a) and background_color.a >= 0 and background_color.a <= 1);
+
     const color_attachments = [_]gpu.RenderPassColorAttachment{.{
         .view = back_buffer_view,
         .clear_value = background_color,
