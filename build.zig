@@ -39,6 +39,6 @@ pub fn build(b: *std.Build) void {
 
     // `zig build run-smoke`
     const smoke = b.addRunArtifact(exe);
-    smoke.addArgs(&.{ "--smoke-frames", "600", "--max-dt-ms", "33"});
+    smoke.addArgs(&.{ "--smoke-frames", "600", "--max-dt-ms", "33" });
     b.step("run-smoke", "Run 600-frames smoke test").dependOn(&smoke.step);
 }

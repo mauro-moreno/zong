@@ -4,6 +4,7 @@ const gpu = mach.gpu;
 
 const Metrics = @import("metrics.zig").Metrics;
 const Limits = @import("metrics.zig").Limits;
+const GuardedAllocator = @import("alloc_guard.zig").GuardedAllocator;
 
 const App = @This();
 
@@ -24,6 +25,14 @@ prev_ns: i128,
 // Metrics + Limits + smoke test controls
 metrics: Metrics,
 limits: Limits = .{ .max_dt_ms = 100.0, .vsync = true },
+
+// Allocation guard
+gpa: std.heap.GeneralPurposeAllocator(.{}) = .{},
+guard: GuardedAllocator = undefined,
+alloc: std.mem.Allocator = undefined,
+alloc_allowed: bool = true,
+
+// Smoke mode
 smoke_mode: bool = false,
 smoke_frames_left: u32 = 0,
 log_accum_ns: i128 = 0,
@@ -32,40 +41,53 @@ pub fn init(core: *mach.Core, app: *App, app_mod: mach.Mod(App)) !void {
     core.on_tick = app_mod.id.tick;
     core.on_exit = app_mod.id.deinit;
 
-    // Parse flags
-    const args = try std.process.argsAlloc(std.heap.page_allocator);
-    defer std.process.argsFree(std.heap.page_allocator, args);
+    // Initialize metrics
+    app.metrics = .{};
+
+    // Initialize gpa
+    app.gpa = std.heap.GeneralPurposeAllocator(.{}){};
+
+    // Base allocator -> guarded allocator
+    const base_alloc = app.gpa.allocator();
+    app.guard = GuardedAllocator.init(base_alloc, &app.alloc_allowed, &app.metrics.alloc_guard_violations);
+    app.alloc = app.guard.allocator();
 
     var smoke_frames: ?u32 = null;
     var lim = app.limits;
 
-    var i: usize = 1;
-    while (i < args.len) : (i += 1) {
-        const a = args[i];
-        if (std.mem.eql(u8, a, "--smoke-frames") and i + 1 < args.len) {
-            smoke_frames = try std.fmt.parseInt(u32, args[i + 1], 10);
-            i += 1;
-        } else if (std.mem.eql(u8, a, "--max-dt-ms") and i + 1 < args.len) {
-            lim.max_dt_ms = try std.fmt.parseFloat(f32, args[i + 1]);
-            i += 1;
-        } else if (std.mem.eql(u8, a, "--no-vsync")) {
-            lim.vsync = false;
+    // Parse flags in its own block for defer
+    {
+        const args = try std.process.argsAlloc(app.alloc);
+        defer std.process.argsFree(app.alloc, args);
+
+        var i: usize = 1;
+        while (i < args.len) : (i += 1) {
+            const a = args[i];
+            if (std.mem.eql(u8, a, "--smoke-frames") and i + 1 < args.len) {
+                smoke_frames = try std.fmt.parseInt(u32, args[i + 1], 10);
+                i += 1;
+            } else if (std.mem.eql(u8, a, "--max-dt-ms") and i + 1 < args.len) {
+                lim.max_dt_ms = try std.fmt.parseFloat(f32, args[i + 1]);
+                i += 1;
+            } else if (std.mem.eql(u8, a, "--no-vsync")) {
+                lim.vsync = false;
+            }
         }
     }
 
     const win = try core.windows.new(.{
         .title = "Zong",
+        .width = 800,
+        .height = 600,
     });
 
-    app.* = .{
-        .window = win,
-        .prev_ns = std.time.nanoTimestamp(),
-        .metrics = .{},
-        .limits = lim,
-        .smoke_mode = smoke_frames != null,
-        .smoke_frames_left = smoke_frames orelse 0,
-        .log_accum_ns = 0,
-    };
+    app.window = win;
+    app.prev_ns = std.time.nanoTimestamp();
+    app.limits = lim;
+    app.smoke_mode = smoke_frames != null;
+    app.smoke_frames_left = smoke_frames orelse 0;
+    app.log_accum_ns = 0;
+    app.alloc_allowed = false;
 
     // Startup log
     std.debug.print("Zong init: max_dt_ms={d:.2} vsync={}\n", .{ app.limits.max_dt_ms, app.limits.vsync });
@@ -86,7 +108,7 @@ pub fn tick(app: *App, core: *mach.Core) void {
     const raw_dt_ns: i128 = now_ns - app.prev_ns;
     app.prev_ns = now_ns;
 
-    var dt_ms = @as(f32, @floatFromInt(now_ns - app.prev_ns)) / 1_000_000.0;
+    var dt_ms = @as(f32, @floatFromInt(raw_dt_ns)) / 1_000_000.0;
     if (!std.math.isFinite(dt_ms)) dt_ms = 0;
     if (dt_ms > app.limits.max_dt_ms) dt_ms = app.limits.max_dt_ms;
 
@@ -144,7 +166,7 @@ pub fn tick(app: *App, core: *mach.Core) void {
     var cmd = encoder.finish(&.{ .label = label });
     defer cmd.release();
     window.queue.submit(&[_]*gpu.CommandBuffer{cmd});
-    
+
     return app.finishSmokeIfNeeded();
 }
 
@@ -166,5 +188,6 @@ fn finishSmokeIfNeeded(app: *App) void {
 }
 
 pub fn deinit(app: *App) void {
-    _ = app;
+    app.alloc_allowed = true;
+    _ = app.gpa.deinit();
 }
